@@ -1,8 +1,8 @@
 name: Build zh-Hant debug APK
 
-# Personal fork: builds an installable debug APK with the Hong Kong
+# Personal fork: builds an installable debug APK carrying the Hong Kong
 # Traditional Chinese strings in lib/l10n/intl_zh.arb.
-# Nothing here touches upstream; it only runs on this fork.
+# Steps mirror the upstream android-build job so the same codegen runs.
 
 on:
   workflow_dispatch:
@@ -17,7 +17,7 @@ permissions:
 jobs:
   apk:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -37,8 +37,20 @@ jobs:
           flutter --version
           java -version
 
+      # envied reads .env at codegen time; CI has no real values.
+      - name: Generate stub .env for CI
+        uses: ./.github/actions/write-env-file
+        with:
+          sentry_dns: https://stub@sentry.io/0
+          supabase_project_url: https://stub.supabase.co
+          supabase_project_anon_key: ci-stub
+
       - name: Resolve dependencies
         run: flutter pub get
+
+      # Produces lib/core/utils/env.g.dart, Hive adapters, JSON serializers.
+      - name: Generate code (env.g.dart, Hive adapters, JSON serializers)
+        run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Build debug APK
         run: flutter build apk --flavor full --debug
